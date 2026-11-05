@@ -59,14 +59,14 @@ void llama_model_plamo3::load_arch_tensors(llama_model_loader &) {
 
 std::unique_ptr<llm_graph_context> llama_model_plamo3::build_arch_graph(const llm_graph_params & params) const {
     if (hparams.swa_type != LLAMA_SWA_TYPE_NONE) {
-        return std::make_unique<graph<true>> (*this, params);
+        return std::make_unique<graph<true>> (params);
     } else {
-        return std::make_unique<graph<false>>(*this, params);
+        return std::make_unique<graph<false>>(params);
     }
 }
 
 template <bool iswa>
-llama_model_plamo3::graph<iswa>::graph(const llama_model & model, const llm_graph_params & params) :
+llama_model_plamo3::graph<iswa>::graph(const llm_graph_params & params) :
     llm_graph_context(params) {
     const int64_t head_dim_q = hparams.n_embd_head_k();
     const int64_t head_dim_v = hparams.n_embd_head_v();
@@ -186,8 +186,6 @@ llama_model_plamo3::graph<iswa>::graph(const llama_model & model, const llm_grap
 
     cur = build_lora_mm(model.output, cur, model.output_s);
     res->t_logits = cur;
-
-    ggml_build_forward_expand(gf, cur);
 }
 
 // Explicit template instantiations

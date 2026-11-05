@@ -115,13 +115,10 @@ void llama_model_granite_swa::load_arch_tensors(llama_model_loader &) {
 }
 
 std::unique_ptr<llm_graph_context> llama_model_granite_swa::build_arch_graph(const llm_graph_params & params) const {
-    return std::make_unique<graph>(*this, params);
+    return std::make_unique<graph>(params);
 }
 
-llama_model_granite_swa::graph::graph(
-    const llama_model & model,
-    const llm_graph_params & params)
-    : llm_graph_context(params) {
+llama_model_granite_swa::graph::graph(const llm_graph_params & params) : llm_graph_context(params) {
 
     const int64_t n_embd_head = hparams.n_embd_head_v();
 
@@ -154,6 +151,8 @@ llama_model_granite_swa::graph::graph(
             cb(inpL, "deepstack_in", il);
         }
 
+        res->t_layer_inp[il] = inpL;
+
         ggml_tensor * inpSA = inpL;
 
         // norm
@@ -165,14 +164,14 @@ llama_model_granite_swa::graph::graph(
         // self-attention
         cur = build_attention_layer(
             cur, inp_pos, inp_attn,
-            model, n_embd_head, il);
+            n_embd_head, il);
 
         if (il == n_layer - 1 && inp_out_ids) {
             cur   = ggml_get_rows(ctx0,   cur, inp_out_ids);
             inpSA = ggml_get_rows(ctx0, inpSA, inp_out_ids);
         }
         // ffn
-        cur = build_layer_ffn(cur, inpSA, model, il);
+        cur = build_layer_ffn(cur, inpSA, il);
 
         // input for next layer
         inpL = cur;
@@ -193,15 +192,12 @@ llama_model_granite_swa::graph::graph(
     cur = ggml_scale(ctx0, cur, 1.0f / hparams.f_logit_scale);
     cb(cur, "result_output", -1);
     res->t_logits = cur;
-
-    ggml_build_forward_expand(gf, cur);
 }
 
 ggml_tensor * llama_model_granite_swa::graph::build_attention_layer(
           ggml_tensor                  * cur,
           ggml_tensor                  * inp_pos,
           llm_graph_input_attn_kv_iswa * inp_attn,
-    const llama_model                  & model,
     const int64_t                        n_embd_head,
     const int                            il) {
 
@@ -241,7 +237,6 @@ ggml_tensor * llama_model_granite_swa::graph::build_attention_layer(
 ggml_tensor * llama_model_granite_swa::graph::build_layer_ffn(
           ggml_tensor * cur,
           ggml_tensor * inpSA,
-    const llama_model & model,
     const int           il) {
 
     // For Granite architectures - scale residual

@@ -67,20 +67,18 @@ void llama_model_gemma_embedding::load_arch_tensors(llama_model_loader &) {
 }
 
 std::unique_ptr<llm_graph_context> llama_model_gemma_embedding::build_arch_graph(const llm_graph_params & params) const {
-    return std::make_unique<graph>(*this, params);
+    return std::make_unique<graph>(params);
 }
 
-llama_model_gemma_embedding::graph::graph(const llama_model & model, const llm_graph_params & params) :
+llama_model_gemma_embedding::graph::graph(const llm_graph_params & params) :
     llm_graph_context(params) {
     const int64_t n_embd_head = hparams.n_embd_head_k();
 
     ggml_tensor * cur;
     ggml_tensor * inpL;
 
-    inpL = build_inp_embd(model.tok_embd);
-
     // important: do not normalize weights for raw embeddings input (i.e. encoded image embeddings)
-    inpL = ggml_scale(ctx0, inpL, ubatch.token ? sqrtf(n_embd) : 1.0f);
+    inpL = build_inp_embd(model.tok_embd, sqrtf(n_embd));
     cb(inpL, "inp_scaled", -1);
 
     // inp_pos - contains the positions
@@ -171,6 +169,4 @@ llama_model_gemma_embedding::graph::graph(const llama_model & model, const llm_g
 
     cb(cur, "result_norm", -1);
     res->t_embd = cur;
-
-    ggml_build_forward_expand(gf, cur);
 }

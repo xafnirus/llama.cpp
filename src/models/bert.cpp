@@ -62,10 +62,10 @@ void llama_model_bert::load_arch_tensors(llama_model_loader &) {
 }
 
 std::unique_ptr<llm_graph_context> llama_model_bert::build_arch_graph(const llm_graph_params & params) const {
-    return std::make_unique<graph>(*this, params);
+    return std::make_unique<graph>(params);
 }
 
-llama_model_bert::graph::graph(const llama_model & model, const llm_graph_params & params) : llm_graph_context(params) {
+llama_model_bert::graph::graph(const llm_graph_params & params) : llm_graph_context(params) {
     const int64_t n_embd_head = hparams.n_embd_head_v();
 
     GGML_ASSERT(n_embd_head == hparams.n_embd_head_k());
@@ -73,9 +73,15 @@ llama_model_bert::graph::graph(const llama_model & model, const llm_graph_params
     ggml_tensor * cur;
     ggml_tensor * inpL;
     ggml_tensor * inp_pos = nullptr;
+    ggml_tensor * embd_pos = nullptr;
 
     if (model.arch != LLM_ARCH_JINA_BERT_V2) {
         inp_pos = build_inp_pos();
+    }
+
+    if (model.arch == LLM_ARCH_BERT) {
+        embd_pos = ggml_get_rows(ctx0, model.pos_embd, inp_pos);
+        ggml_build_forward_order(gf, embd_pos);
     }
 
     // construct input embeddings (token, type, position)
@@ -87,7 +93,7 @@ llama_model_bert::graph::graph(const llama_model & model, const llm_graph_params
         inpL                    = ggml_add(ctx0, inpL, type_row0);
     }
     if (model.arch == LLM_ARCH_BERT) {
-        inpL = ggml_add(ctx0, ggml_get_rows(ctx0, model.pos_embd, inp_pos), inpL);
+        inpL = ggml_add(ctx0, embd_pos, inpL);
     }
     cb(inpL, "inp_embd", -1);
 
@@ -216,6 +222,4 @@ llama_model_bert::graph::graph(const llama_model & model, const llm_graph_params
 
     cb(cur, "result_embd", -1);
     res->t_embd = cur;
-
-    ggml_build_forward_expand(gf, cur);
 }
