@@ -27,10 +27,10 @@ void llama_model_dspark::load_arch_tensors(llama_model_loader & ml) {
 std::unique_ptr<llm_graph_context> llama_model_dspark::build_arch_graph(const llm_graph_params & params) const {
     switch (params.gtype) {
         case LLM_GRAPH_TYPE_ENCODER:
-            return std::make_unique<graph<true>>(*this, params);
+            return std::make_unique<graph<true>>(params);
         case LLM_GRAPH_TYPE_DEFAULT:
         case LLM_GRAPH_TYPE_DECODER:
-            return std::make_unique<graph<false>>(*this, params);
+            return std::make_unique<graph<false>>(params);
         default:
             GGML_ABORT("invalid graph type");
     };
@@ -38,8 +38,8 @@ std::unique_ptr<llm_graph_context> llama_model_dspark::build_arch_graph(const ll
 
 // DSpark encoder == DFlash encoder
 template <>
-llama_model_dspark::graph<true>::graph(const llama_model & model, const llm_graph_params & params)
-    : llama_model_dflash::graph<true>(model, params) {}
+llama_model_dspark::graph<true>::graph(const llm_graph_params & params)
+    : llama_model_dflash::graph<true>(params) {}
 
 // anchor (committed last) token of every draft block: token 0 of each block in the ubatch
 class llm_graph_input_dspark_anchor : public llm_graph_input_i {
@@ -71,8 +71,8 @@ public:
 //   logits'(i) = logits(i) + markov_w2 . markov_w1[prev(i)]
 //   prev(0)    = the block's anchor token, prev(i>0) = argmax(logits'(i-1))
 template <>
-llama_model_dspark::graph<false>::graph(const llama_model & model, const llm_graph_params & params)
-    : llama_model_dflash::graph<false>(model, params) {
+llama_model_dspark::graph<false>::graph(const llm_graph_params & params)
+    : llama_model_dflash::graph<false>(params) {
     // KV-injection (embd) batch: no logits to bias
     if (ubatch.embd) {
         return;

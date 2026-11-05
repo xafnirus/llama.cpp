@@ -1629,7 +1629,7 @@ struct llama_model_dspark : public llama_model_dflash {
     // the DFlash graphs plus the in-graph Markov head on the decoder's draft logits
     template <bool is_enc>
     struct graph : public llama_model_dflash::graph<is_enc> {
-        graph(const llama_model & model, const llm_graph_params & params);
+        graph(const llm_graph_params & params);
     };
 
     std::unique_ptr<llm_graph_context> build_arch_graph(const llm_graph_params & params) const override;

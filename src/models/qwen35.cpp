@@ -37,6 +37,10 @@ void llama_model_qwen35::load_arch_tensors(llama_model_loader & ml) {
     const int trunk_flags = nf.trunk;
     const int mtp_flags   = nf.mtp;
 
+    // FastMTP sidecars hold only the NextN layers; upstream's nextn_flags
+    // reports that as TENSOR_NOT_REQUIRED for the trunk.
+    const bool mtp_only = nf.trunk == TENSOR_NOT_REQUIRED;
+
     // HauhauCS FastMTP sidecars use a compact output vocabulary. The d2t tensor
     // maps each draft-vocabulary row back to the full target token id.
     int64_t n_vocab_out = n_vocab;
